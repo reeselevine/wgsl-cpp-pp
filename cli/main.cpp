@@ -35,7 +35,7 @@ int main(int argc, char** argv) {
 
     try {
         wgslpp::Preprocessor pp(opts);
-        std::string result = pp.run(input);
+        std::string result = pp.preprocess_file(input);
 
         if (!output.empty()) {
             std::ofstream f(output);

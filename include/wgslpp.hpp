@@ -215,8 +215,8 @@ private:
         int v = parseUnary();
         for (;;) {
             if (acceptOp("*")) { int rhs = parseUnary(); v = (v * rhs); }
-            else if (acceptOp("/")) { int rhs = parseUnary(); v = (rhs == 0?0:v / rhs); }
-            else if (acceptOp("%")) { int rhs = parseUnary(); v = (rhs == 0?0:v % rhs); }
+            else if (acceptOp("/")) { int rhs = parseUnary(); v = (rhs == 0 ? 0 : v / rhs); }
+            else if (acceptOp("%")) { int rhs = parseUnary(); v = (rhs == 0 ? 0 : v % rhs); }
             else break;
         }
         return v;
@@ -289,12 +289,12 @@ public:
     explicit Preprocessor(Options opts = {})
         : opts_(std::move(opts)) {}
 
-    std::string run(const std::string& filename) {
+    std::string preprocess_file(const std::string& filename) {
         include_stack.clear();
         return processFile(filename);
     }
 
-    std::string run_from_string(const std::string& contents)
+    std::string preprocess(const std::string& contents)
     {
         include_stack.clear();
         return processString(contents);
