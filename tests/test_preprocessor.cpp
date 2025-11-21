@@ -108,6 +108,25 @@ var has_alpha : i32 = 0;
     REQUIRE(out.find("var has_alpha : i32 = 0;") == std::string::npos);
 }
 
+TEST_CASE("if_defined_empty_value") {
+    wgslpp::Preprocessor pp;
+
+    // Extra spaces to test trimming
+    const std::string src = R"(#define HAS_ALPHA
+#if defined(HAS_ALPHA)
+var has_alpha : i32 = 1;
+#else
+var has_alpha : i32 = 0;
+#endif
+)";
+
+    std::string out = pp.preprocess(src);
+    out = normalize_newlines(out);
+
+    REQUIRE(out.find("var has_alpha : i32 = 1;") != std::string::npos);
+    REQUIRE(out.find("var has_alpha : i32 = 0;") == std::string::npos);
+}
+
 TEST_CASE("if_undefined") {
     wgslpp::Preprocessor pp;
 
@@ -253,4 +272,35 @@ var selected_mode : i32 = 3;
     REQUIRE(out.find("var quality_level : i32 = 1;") == std::string::npos);
 }
 
-// TODO: tests for define with no value, missing #endif
+TEST_CASE("unmatched_endif") {
+    wgslpp::Preprocessor pp;
+
+    const std::string src = R"(var x : i32 = 1;
+#endif
+var y : i32 = 2;
+)";
+
+    REQUIRE_THROWS_AS(pp.preprocess(src), std::runtime_error);
+}
+
+TEST_CASE("unmatched_if") {
+    wgslpp::Preprocessor pp;
+
+    const std::string src = R"(#define FOO 1
+#if FOO == 1
+var x : i32 = 1;
+)";
+
+    REQUIRE_THROWS_AS(pp.preprocess(src), std::runtime_error);
+}
+
+TEST_CASE("unknown_directive") {
+    wgslpp::Preprocessor pp;
+
+    const std::string src = R"(var x : i32 = 1;
+#pragma something
+var y : i32 = 2;
+)";
+
+    REQUIRE_THROWS_AS(pp.preprocess(src), std::runtime_error);
+}

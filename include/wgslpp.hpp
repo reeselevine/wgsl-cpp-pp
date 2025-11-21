@@ -33,8 +33,14 @@ static inline std::string trim(const std::string& s) {
     return s.substr(a, b - a);
 }
 
+static inline std::string trim_value(std::istream& is) {
+    std::string str;
+    std::getline(is, str);
+    return trim(str);
+}
+
 //==============================================================
-// Tokenizer for expressions in #if
+// Tokenizer for expressions in #if/#elif
 //==============================================================
 class ExprLexer {
 public:
@@ -369,6 +375,10 @@ private:
                     out << line << "\n";
             }
         }
+
+        if (!cond.empty())
+            throw std::runtime_error("Unclosed #if directive");
+
         return out.str();
     }
 
@@ -397,9 +407,7 @@ private:
             if (!currentActive()) return;
             std::string name;
             iss >> name;
-            std::string value;
-            std::getline(iss, value);
-            value = trim(value);
+            std::string value = trim_value(iss);
             macros[name] = value;
             return;
         }
@@ -421,9 +429,7 @@ private:
         }
 
         if (cmd == "if") {
-            std::string expr;
-            std::getline(iss, expr);
-            expr = trim(expr);
+            std::string expr = trim_value(iss);
             bool p = currentActive();
             bool v = false;
             if (p) {
@@ -435,9 +441,7 @@ private:
         }
 
         if (cmd == "elif") {
-            std::string expr;
-            std::getline(iss, expr);
-            expr = trim(expr);
+            std::string expr = trim_value(iss);
 
             if (cond.empty())
                 throw std::runtime_error("#elif without #if");
@@ -485,7 +489,8 @@ private:
             return;
         }
 
-        // TODO: error on uknown directive
+        // Unknown directive
+        throw std::runtime_error("Unknown directive: #" + cmd);
     }
 };
 
