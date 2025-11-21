@@ -5,7 +5,11 @@
 #include "pre_wgsl.hpp"
 
 void print_usage() {
-    std::cout << "Usage: pre-wgsl-cli <input.wgsl> [-I include_path] [-o output.wgsl]\n";
+    std::cout << "Usage: pre-wgsl-cli <input.wgsl> [-I include_path] [-D MACRO[=value]] [-o output.wgsl]\n";
+    std::cout << "Options:\n";
+    std::cout << "  -I <path>      Set include path for #include directives\n";
+    std::cout << "  -D <macro>     Define a macro (e.g., -D FOO or -D BAR=1)\n";
+    std::cout << "  -o <output>    Write output to file instead of stdout\n";
 }
 
 int main(int argc, char** argv) {
@@ -18,7 +22,7 @@ int main(int argc, char** argv) {
     std::string output;
 
     pre_wgsl::Options opts;
-    opts.include_path = {};
+    opts.include_path = ".";
 
     for (int i = 2; i < argc; i++) {
         std::string arg = argv[i];
@@ -27,6 +31,8 @@ int main(int argc, char** argv) {
             output = argv[++i];
         } else if (arg == "-I" && i + 1 < argc) {
             opts.include_path = argv[++i];
+        } else if (arg == "-D" && i + 1 < argc) {
+            opts.macros.push_back(argv[++i]);
         } else if (arg == "-h") {
             print_usage();
             return 0;

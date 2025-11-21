@@ -21,6 +21,7 @@ namespace pre_wgsl {
 //==============================================================
 struct Options {
     std::string include_path = ".";
+    std::vector<std::string> macros;
 };
 
 //==============================================================
@@ -299,30 +300,91 @@ public:
           if (opts_.include_path.empty()) {
               opts_.include_path = ".";
           }
+          parseMacroDefinitions(opts_.macros);
         }
 
-    std::string preprocess_file(const std::string& filename) {
-        include_stack.clear();
-        return processFile(filename);
+    std::string preprocess_file(const std::string& filename,
+                                const std::vector<std::string>& additional_macros = {}) {
+        std::unordered_map<std::string,std::string> macros;
+        std::unordered_set<std::string> predefined;
+        std::unordered_set<std::string> include_stack;
+        buildMacros(additional_macros, macros, predefined);
+
+        std::string result = processFile(filename, macros, predefined, include_stack);
+        return result;
     }
 
-    std::string preprocess(const std::string& contents)
+    std::string preprocess(const std::string& contents,
+                          const std::vector<std::string>& additional_macros = {})
     {
-        include_stack.clear();
-        return processString(contents);
+        std::unordered_map<std::string,std::string> macros;
+        std::unordered_set<std::string> predefined;
+        std::unordered_set<std::string> include_stack;
+        buildMacros(additional_macros, macros, predefined);
+
+        std::string result = processString(contents, macros, predefined, include_stack);
+        return result;
     }
 
 private:
     Options opts_;
-    std::unordered_map<std::string,std::string> macros;
-    std::unordered_set<std::string> include_stack;
+    std::unordered_map<std::string,std::string> global_macros;
 
     struct Cond {
         bool parent_active;
         bool active;
         bool taken;
     };
-    std::vector<Cond> cond;
+
+    //----------------------------------------------------------
+    // Parse macro definitions into global_macros
+    //----------------------------------------------------------
+    void parseMacroDefinitions(const std::vector<std::string>& macro_defs) {
+        for (const auto& def : macro_defs) {
+            size_t eq_pos = def.find('=');
+            if (eq_pos != std::string::npos) {
+                // Format: NAME=VALUE
+                std::string name = trim(def.substr(0, eq_pos));
+                std::string value = trim(def.substr(eq_pos + 1));
+                global_macros[name] = value;
+            } else {
+                // Format: NAME
+                std::string name = trim(def);
+                global_macros[name] = "";
+            }
+        }
+    }
+
+    //----------------------------------------------------------
+    // Build combined macro map and predefined set for a preprocessing operation
+    //----------------------------------------------------------
+    void buildMacros(
+            const std::vector<std::string>& additional_macros,
+            std::unordered_map<std::string,std::string>& macros,
+            std::unordered_set<std::string>& predefined) {
+        macros = global_macros;
+        predefined.clear();
+
+        for (const auto& [name, value] : global_macros) {
+            predefined.insert(name);
+        }
+
+        for (const auto& def : additional_macros) {
+            size_t eq_pos = def.find('=');
+            std::string name, value;
+            if (eq_pos != std::string::npos) {
+                name = trim(def.substr(0, eq_pos));
+                value = trim(def.substr(eq_pos + 1));
+            } else {
+                name = trim(def);
+                value = "";
+            }
+
+            // Add to macros map (will override global if same name)
+            macros[name] = value;
+            predefined.insert(name);
+        }
+    }
 
     //----------------------------------------------------------
     // Helpers
@@ -336,7 +398,7 @@ private:
         return ss.str();
     }
 
-    bool currentActive() const {
+    bool condActive(const std::vector<Cond>& cond) const {
         if (cond.empty()) return true;
         return cond.back().active;
     }
@@ -344,7 +406,8 @@ private:
     //----------------------------------------------------------
     // Expand macros in a line of code
     //----------------------------------------------------------
-    std::string expandMacros(const std::string& line) {
+    std::string expandMacros(const std::string& line,
+                            const std::unordered_map<std::string,std::string>& macros) {
         std::string result;
         size_t pos = 0;
         while (pos < line.size()) {
@@ -378,27 +441,37 @@ private:
     //----------------------------------------------------------
     // Process a file
     //----------------------------------------------------------
-    std::string processFile(const std::string& name) {
+    std::string processFile(const std::string& name,
+                           std::unordered_map<std::string,std::string>& macros,
+                           const std::unordered_set<std::string>& predefined_macros,
+                           std::unordered_set<std::string>& include_stack) {
         if (include_stack.count(name))
             throw std::runtime_error("Recursive include: " + name);
 
         include_stack.insert(name);
         std::string shader_code = loadFile(name);
-        std::string out = processString(shader_code);
+        std::string out = processString(shader_code, macros, predefined_macros, include_stack);
         include_stack.erase(name);
         return out;
     }
 
-    std::string processIncludeFile(const std::string& fname) {
+    std::string processIncludeFile(const std::string& fname,
+                                   std::unordered_map<std::string,std::string>& macros,
+                                   const std::unordered_set<std::string>& predefined_macros,
+                                   std::unordered_set<std::string>& include_stack) {
         std::string full_path = opts_.include_path + "/" + fname;
-        return processFile(full_path);
+        return processFile(full_path, macros, predefined_macros, include_stack);
     }
 
     //----------------------------------------------------------
     // Process text
     //----------------------------------------------------------
-    std::string processString(const std::string& shader_code)
+    std::string processString(const std::string& shader_code,
+                             std::unordered_map<std::string,std::string>& macros,
+                             const std::unordered_set<std::string>& predefined_macros,
+                             std::unordered_set<std::string>& include_stack)
     {
+        std::vector<Cond> cond;  // Conditional stack for this shader
         std::stringstream out;
         std::istringstream in(shader_code);
         std::string line;
@@ -407,11 +480,11 @@ private:
             std::string t = trim(line);
 
             if (!t.empty() && t[0] == '#') {
-                handleDirective(t, out);
+                handleDirective(t, out, macros, predefined_macros, cond, include_stack);
             } else {
-                if (currentActive()) {
+                if (condActive(cond)) {
                     // Expand macros in the line before outputting
-                    std::string expanded = expandMacros(line);
+                    std::string expanded = expandMacros(line, macros);
                     out << expanded << "\n";
                 }
             }
@@ -426,7 +499,11 @@ private:
     //----------------------------------------------------------
     // Directive handler
     //----------------------------------------------------------
-    void handleDirective(const std::string& t, std::stringstream& out) {
+    void handleDirective(const std::string& t, std::stringstream& out,
+                        std::unordered_map<std::string,std::string>& macros,
+                        const std::unordered_set<std::string>& predefined_macros,
+                        std::vector<Cond>& cond,
+                        std::unordered_set<std::string>& include_stack) {
         // split into tokens
         std::string body = t.substr(1);
         std::istringstream iss(body);
@@ -434,19 +511,21 @@ private:
         iss >> cmd;
 
         if (cmd == "include") {
-            if (!currentActive()) return;
+            if (!condActive(cond)) return;
             std::string file;
             iss >> file;
             if (file.size() >= 2 && file.front()=='"' && file.back()=='"')
                 file = file.substr(1, file.size()-2);
-            out << processIncludeFile(file);
+            out << processIncludeFile(file, macros, predefined_macros, include_stack);
             return;
         }
 
         if (cmd == "define") {
-            if (!currentActive()) return;
+            if (!condActive(cond)) return;
             std::string name;
             iss >> name;
+            // Don't override predefined macros from options
+            if (predefined_macros.count(name)) return;
             std::string value = trim_value(iss);
             macros[name] = value;
             return;
@@ -454,7 +533,7 @@ private:
 
         if (cmd == "ifdef") {
             std::string name; iss >> name;
-            bool p = currentActive();
+            bool p = condActive(cond);
             bool v = macros.count(name);
             cond.push_back({p, p && v, p && v});
             return;
@@ -462,7 +541,7 @@ private:
 
         if (cmd == "ifndef") {
             std::string name; iss >> name;
-            bool p = currentActive();
+            bool p = condActive(cond);
             bool v = !macros.count(name);
             cond.push_back({p, p && v, p && v});
             return;
@@ -470,7 +549,7 @@ private:
 
         if (cmd == "if") {
             std::string expr = trim_value(iss);
-            bool p = currentActive();
+            bool p = condActive(cond);
             bool v = false;
             if (p) {
                 ExprParser ep(expr, macros);
