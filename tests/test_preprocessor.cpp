@@ -311,11 +311,11 @@ TEST_CASE("define_expansion_in_code") {
     const std::string src = R"(#define WORKGROUP_SIZE 256
 #define PI 3.14159
 
-@compute @workgroup_size(WORKGROUP_SIZE)
+@compute @workgroup_size({{WORKGROUP_SIZE}})
 fn main() {
     let radius : f32 = 10.0;
-    let area : f32 = PI* radius * radius;
-    var threads : i32 = WORKGROUP_SIZE;
+    let area : f32 = {{PI}}* radius * radius;
+    var threads : i32 = {{WORKGROUP_SIZE}};
 }
 )";
 
@@ -330,8 +330,8 @@ fn main() {
     REQUIRE(out.find("var threads : i32 = 256;") != std::string::npos);
 
     // The macro names themselves should not appear in the output
-    REQUIRE(out.find("WORKGROUP_SIZE") == std::string::npos);
-    REQUIRE(out.find("PI") == std::string::npos);
+    REQUIRE(out.find("{{WORKGROUP_SIZE}}") == std::string::npos);
+    REQUIRE(out.find("{{PI}}") == std::string::npos);
 }
 
 TEST_CASE("options_macro_simple") {
@@ -377,7 +377,7 @@ TEST_CASE("options_macro_complex_value") {
     opts.macros = {"VEC_TYPE=vec4<u32>"};
     pre_wgsl::Preprocessor pp(opts);
 
-    const std::string src = R"(var my_vector : VEC_TYPE = VEC_TYPE(1u, 2u, 3u, 4u);
+    const std::string src = R"(var my_vector : {{VEC_TYPE}} = {{VEC_TYPE}}(1u, 2u, 3u, 4u);
 )";
 
     std::string out = pp.preprocess(src);
@@ -395,7 +395,7 @@ TEST_CASE("options_macro_overrides_define") {
     pre_wgsl::Preprocessor pp(opts);
 
     const std::string src = R"(#define OVERRIDE 123
-var value : i32 = OVERRIDE;
+var value : i32 = {{OVERRIDE}};
 )";
 
     std::string out = pp.preprocess(src);
@@ -414,9 +414,9 @@ TEST_CASE("options_multiple_macros") {
     pre_wgsl::Preprocessor pp(opts);
 
     const std::string src = R"(#ifdef FOO
-var foo_defined : i32 = BAR;
+var foo_defined : i32 = {{BAR}};
 #endif
-var my_vec : BAZ;
+var my_vec : {{BAZ}};
 )";
 
     std::string out = pp.preprocess(src);
@@ -433,7 +433,7 @@ TEST_CASE("options_macro_with_spaces") {
     opts.macros = {"  SPACED  =  123  "};
     pre_wgsl::Preprocessor pp(opts);
 
-    const std::string src = R"(var value : i32 = SPACED;
+    const std::string src = R"(var value : i32 = {{SPACED}};
 )";
 
     std::string out = pp.preprocess(src);
@@ -469,7 +469,7 @@ var feature_enabled : i32 = 0;
 TEST_CASE("per_call_macros_with_value") {
     pre_wgsl::Preprocessor pp;
 
-    const std::string src = R"(var size : i32 = SIZE;
+    const std::string src = R"(var size : i32 = {{SIZE}};
 )";
 
     // Call with different SIZE values
@@ -486,7 +486,7 @@ TEST_CASE("per_call_macros_override_per_file") {
     pre_wgsl::Preprocessor pp;
 
     const std::string src = R"(#define LOCAL 100
-var local_value : i32 = LOCAL;
+var local_value : i32 = {{LOCAL}};
 )";
 
     // Per-call macro should override #define in the file (per-call macros are predefined)
@@ -502,8 +502,8 @@ TEST_CASE("global_and_per_call_macros") {
     opts.macros = {"GLOBAL=100"};
     pre_wgsl::Preprocessor pp(opts);
 
-    const std::string src = R"(var global_val : i32 = GLOBAL;
-var local_val : i32 = LOCAL;
+    const std::string src = R"(var global_val : i32 = {{GLOBAL}};
+var local_val : i32 = {{LOCAL}};
 )";
 
     // Use both global and per-call macros
@@ -519,7 +519,7 @@ TEST_CASE("global_macros_should_be_overridden") {
     opts.macros = {"OVERRIDEABLE=100"};
     pre_wgsl::Preprocessor pp(opts);
 
-    const std::string src = R"(var value : i32 = OVERRIDEABLE;
+    const std::string src = R"(var value : i32 = {{OVERRIDEABLE}};
 )";
 
     // Override global macro with per-call macro
@@ -535,7 +535,7 @@ TEST_CASE("per_call_macros_multiple") {
     pre_wgsl::Preprocessor pp;
 
     const std::string src = R"(#if defined(A) && defined(B)
-var ab_value : i32 = A + B;
+var ab_value : i32 = {{A}} + {{B}};
 #endif
 )";
 
@@ -548,7 +548,7 @@ var ab_value : i32 = A + B;
 TEST_CASE("per_call_macros_complex_value") {
     pre_wgsl::Preprocessor pp;
 
-    const std::string src = R"(var my_vec : VEC_TYPE;
+    const std::string src = R"(var my_vec : {{VEC_TYPE}};
 )";
 
     std::string out = pp.preprocess(src, {"VEC_TYPE=vec3<f32>"});
@@ -562,7 +562,7 @@ TEST_CASE("per_call_macros_persistent_across_calls") {
     opts.macros = {"PERSISTENT=42"};
     pre_wgsl::Preprocessor pp(opts);
 
-    const std::string src = R"(var val : i32 = PERSISTENT;
+    const std::string src = R"(var val : i32 = {{PERSISTENT}};
 )";
 
     // First call with no per-call macros

@@ -9,10 +9,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <cctype>
-
-#ifndef __EMSCRIPTEN__
 #include <fstream>
-#endif
 
 namespace pre_wgsl {
 
@@ -411,24 +408,29 @@ private:
         std::string result;
         size_t pos = 0;
         while (pos < line.size()) {
-            if (std::isspace((unsigned char)line[pos])) {
-                result += line[pos];
-                pos++;
-                continue;
-            }
-            if (std::isalpha((unsigned char)line[pos]) || line[pos] == '_') {
-                size_t start = pos;
-                while (pos < line.size() &&
-                       (std::isalnum((unsigned char)line[pos]) || line[pos] == '_')) {
-                    pos++;
+            if (line[pos] == '{' && pos + 1 < line.size() && line[pos + 1] == '{') {
+                size_t end = pos + 2;
+                while (end + 1 < line.size() && !(line[end] == '}' && line[end + 1] == '}')) {
+                    end++;
                 }
-                std::string ident = line.substr(start, pos - start);
 
-                auto it = macros.find(ident);
-                if (it != macros.end()) {
-                    result += it->second;
+                if (end + 1 < line.size() && line[end] == '}' && line[end + 1] == '}') {
+                    std::string macro_name = line.substr(pos + 2, end - pos - 2);
+                    macro_name = trim(macro_name);
+
+                    auto it = macros.find(macro_name);
+                    if (it != macros.end()) {
+                        result += it->second;
+                    } else {
+                        // If macro not found, keep the original {{MACRO_NAME}}
+                        result += line.substr(pos, end - pos + 2);
+                    }
+
+                    pos = end + 2;
                 } else {
-                    result += ident;
+                    // No closing }}, just copy the character
+                    result += line[pos];
+                    pos++;
                 }
             } else {
                 result += line[pos];
