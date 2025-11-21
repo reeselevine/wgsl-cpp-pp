@@ -2,10 +2,10 @@
 #include <fstream>
 #include <string>
 #include <vector>
-#include "wgslpp.hpp"
+#include "pre_wgsl.hpp"
 
 void print_usage() {
-    std::cout << "Usage: wgslpp-cli <input.wgsl> [-I include_path] [-o output.wgsl]\n";
+    std::cout << "Usage: pre-wgsl-cli <input.wgsl> [-I include_path] [-o output.wgsl]\n";
 }
 
 int main(int argc, char** argv) {
@@ -17,7 +17,7 @@ int main(int argc, char** argv) {
     std::string input = argv[1];
     std::string output;
 
-    wgslpp::Options opts;
+    pre_wgsl::Options opts;
     opts.include_path = {};
 
     for (int i = 2; i < argc; i++) {
@@ -34,7 +34,7 @@ int main(int argc, char** argv) {
     }
 
     try {
-        wgslpp::Preprocessor pp(opts);
+        pre_wgsl::Preprocessor pp(opts);
         std::string result = pp.preprocess_file(input);
 
         if (!output.empty()) {
@@ -44,7 +44,7 @@ int main(int argc, char** argv) {
             std::cout << result;
         }
     } catch (const std::exception& e) {
-        std::cerr << "wgslpp error: " << e.what() << "\n";
+        std::cerr << "pre-wgsl error: " << e.what() << "\n";
         return 1;
     }
 

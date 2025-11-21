@@ -6,7 +6,6 @@
 #define OPERATION_MODE 2  // 0=multiply, 1=add, 2=transform
 #define PI 3.14159
 
-// Include utility functions
 #include "utils.wgsl"
 
 @group(0) @binding(0) var<storage, read> input_data: array<f32>;
@@ -26,19 +25,19 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         // Add mode
         var result = value + 10.0;
     #else
-        // Transform mode - using included function
+        // Transform mode
         var result = applyTransform(value, 1.5);
     #endif
 
     #if USE_NORMALIZATION == 1
-        // Normalize to range [0, 1] - using included function
+        // Normalize to range [0, 1]
         result = normalizeValue(result, 0.0, 100.0);
     #else
         result = result;
     #endif
 
     #if DEBUG_MODE == 1
-        // Debug mode - using included function
+        // Debug mode
         output_data[index] = debugValue(result, index);
     #else
         output_data[index] = result;

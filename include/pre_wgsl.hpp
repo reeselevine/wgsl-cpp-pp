@@ -1,19 +1,20 @@
-#ifndef WGSLPP_HPP
-#define WGSLPP_HPP
+#ifndef PRE_WGSL_HPP
+#define PRE_WGSL_HPP
 
 #include <string>
 #include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-#include <fstream>
 #include <sstream>
 #include <stdexcept>
 #include <cctype>
-#include <optional>
-#include <iostream>
 
-namespace wgslpp {
+#ifndef __EMSCRIPTEN__
+#include <fstream>
+#endif
+
+namespace pre_wgsl {
 
 //==============================================================
 // Options
@@ -311,8 +312,6 @@ public:
         return processString(contents);
     }
 
-    // TODO: add API to separate out includes vs. other directives
-
 private:
     Options opts_;
     std::unordered_map<std::string,std::string> macros;
@@ -438,7 +437,6 @@ private:
             if (!currentActive()) return;
             std::string file;
             iss >> file;
-            std::cout << "Including file: " << file << "\n";
             if (file.size() >= 2 && file.front()=='"' && file.back()=='"')
                 file = file.substr(1, file.size()-2);
             out << processIncludeFile(file);
@@ -536,6 +534,6 @@ private:
     }
 };
 
-} // namespace wgslpp
+} // namespace pre_wgsl
 
-#endif // WGSLPP_HPP
+#endif // PRE_WGSL_HPP

@@ -1,9 +1,9 @@
 # ============================================================================
-# Example: How to integrate wgslpp into your C++ CMake project
+# Example: How to integrate pre-wgsl into your C++ CMake project
 # ============================================================================
 
 cmake_minimum_required(VERSION 3.17)
-project(wgslpp-example CXX)
+project(pre-wgsl-example CXX)
 
 
 # ----------------------------------------------------------------------------
@@ -17,18 +17,18 @@ add_subdirectory(../.. build)
 # include(FetchContent)
 #
 # FetchContent_Declare(
-#     wgslpp
-#     GIT_REPOSITORY https://github.com/reeselevine/wgsl-cpp-pp.git
+#     pre-wgsl
+#     GIT_REPOSITORY https://github.com/reeselevine/pre-wgsl.git
 #     GIT_TAG main
 # )
 #
-# FetchContent_MakeAvailable(wgslpp)
+# FetchContent_MakeAvailable(pre-wgsl)
 
 # ----------------------------------------------------------------------------
 # Method 3: find_package
 # ----------------------------------------------------------------------------
-# find_package(wgslpp REQUIRED)
+# find_package(pre-wgsl REQUIRED)
 
-add_executable(wgslpp-cli main.cpp)
-target_link_libraries(wgslpp-cli PRIVATE wgslpp)
-target_compile_features(wgslpp-cli PRIVATE cxx_std_17)
+add_executable(pre-wgsl-cli main.cpp)
+target_link_libraries(pre-wgsl-cli PRIVATE pre-wgsl)
+target_compile_features(pre-wgsl-cli PRIVATE cxx_std_17)

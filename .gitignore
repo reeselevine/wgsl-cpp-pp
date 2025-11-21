@@ -1,2 +1,7 @@
 build/
 .vscode/
+node_modules/
+dist/
+wasm/build/
+*.log
+.DS_Store

@@ -3,7 +3,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-#include "wgslpp.hpp"
+#include "pre_wgsl.hpp"
 
 static const std::string test_shader_dir = TEST_SHADER_DIR;
 
@@ -17,7 +17,7 @@ static std::string normalize_newlines(const std::string& s) {
 }
 
 TEST_CASE("passthrough") {
-    wgslpp::Preprocessor pp;
+    pre_wgsl::Preprocessor pp;
 
     const std::string src = R"(fn main() {
     var x : f32 = 1.0;
@@ -30,9 +30,9 @@ TEST_CASE("passthrough") {
 }
 
 TEST_CASE("basic_include") {
-    wgslpp::Options opts;
+    pre_wgsl::Options opts;
     opts.include_path = test_shader_dir;
-    wgslpp::Preprocessor pp(opts);
+    pre_wgsl::Preprocessor pp(opts);
 
     INFO("Running preprocessor on main_include.wgsl");
 
@@ -47,15 +47,15 @@ TEST_CASE("basic_include") {
 }
 
 TEST_CASE("recursive_include") {
-    wgslpp::Options opts;
+    pre_wgsl::Options opts;
     opts.include_path = "tests/shaders";
-    wgslpp::Preprocessor pp(opts);
+    pre_wgsl::Preprocessor pp(opts);
 
     REQUIRE_THROWS_AS(pp.preprocess_file("recursive_a.wgsl"), std::runtime_error);
 }
 
 TEST_CASE("ifdef_defined") {
-    wgslpp::Preprocessor pp;
+    pre_wgsl::Preprocessor pp;
 
     const std::string src = R"(#define ENABLE_FOO 1
 #ifdef ENABLE_FOO
@@ -73,7 +73,7 @@ var foo_enabled : i32 = 0;
 }
 
 TEST_CASE("ifndef_undefined") {
-    wgslpp::Preprocessor pp;
+    pre_wgsl::Preprocessor pp;
 
     const std::string src = R"(#ifndef DISABLE_BAR
 var bar_disabled : i32 = 0;
@@ -90,7 +90,7 @@ var bar_disabled : i32 = 1;
 }
 
 TEST_CASE("if_defined") {
-    wgslpp::Preprocessor pp;
+    pre_wgsl::Preprocessor pp;
 
     // Extra spaces to test trimming
     const std::string src = R"(#define HAS_ALPHA 1
@@ -109,7 +109,7 @@ var has_alpha : i32 = 0;
 }
 
 TEST_CASE("if_defined_empty_value") {
-    wgslpp::Preprocessor pp;
+    pre_wgsl::Preprocessor pp;
 
     // Extra spaces to test trimming
     const std::string src = R"(#define HAS_ALPHA
@@ -128,7 +128,7 @@ var has_alpha : i32 = 0;
 }
 
 TEST_CASE("if_undefined") {
-    wgslpp::Preprocessor pp;
+    pre_wgsl::Preprocessor pp;
 
     const std::string src = R"(#if defined HAS_BETA
 var has_beta  : i32 = 1;
@@ -145,7 +145,7 @@ var has_beta  : i32 = 0;
 }
 
 TEST_CASE("if_not_defined") {
-    wgslpp::Preprocessor pp;
+    pre_wgsl::Preprocessor pp;
 
     // Extra spaces to test trimming
     const std::string src = R"(#if ! defined(HAS_BETA)
@@ -162,7 +162,7 @@ var has_beta  : i32 = 0;
     REQUIRE(out.find("var has_beta  : i32 = 0;") == std::string::npos);
 }
 TEST_CASE("if_arithmetic_equality") {
-    wgslpp::Preprocessor pp;
+    pre_wgsl::Preprocessor pp;
 
     const std::string src = R"(#define NUM_THREADS 64
 #define BLOCKS 4
@@ -182,7 +182,7 @@ var product_256 : i32 = 0;
 }
 
 TEST_CASE("if_arithmetic_inequality") {
-    wgslpp::Preprocessor pp;
+    pre_wgsl::Preprocessor pp;
 
     const std::string src = R"(#define NUM_THREADS 64
 #define BLOCKS 4
@@ -201,7 +201,7 @@ var product_not_256 : i32 = 0;
 }
 
 TEST_CASE("if_logical_and") {
-    wgslpp::Preprocessor pp;
+    pre_wgsl::Preprocessor pp;
 
     const std::string src = R"(#define NUM_THREADS 64
 #define BLOCKS 4
@@ -222,7 +222,7 @@ var combo_true : i32 = 0;
 }
 
 TEST_CASE("if_logical_or") {
-    wgslpp::Preprocessor pp;
+    pre_wgsl::Preprocessor pp;
 
     const std::string src = R"(#define NUM_THREADS 64
 #define BLOCKS 4
@@ -242,7 +242,7 @@ var combo_false : i32 = 0;
 }
 
 TEST_CASE("elif_nested_cond") {
-    wgslpp::Preprocessor pp;
+    pre_wgsl::Preprocessor pp;
 
     const std::string src = R"(#define MODE 2
 #define HIGH_QUALITY 1
@@ -273,7 +273,7 @@ var selected_mode : i32 = 3;
 }
 
 TEST_CASE("unmatched_endif") {
-    wgslpp::Preprocessor pp;
+    pre_wgsl::Preprocessor pp;
 
     const std::string src = R"(var x : i32 = 1;
 #endif
@@ -284,7 +284,7 @@ var y : i32 = 2;
 }
 
 TEST_CASE("unmatched_if") {
-    wgslpp::Preprocessor pp;
+    pre_wgsl::Preprocessor pp;
 
     const std::string src = R"(#define FOO 1
 #if FOO == 1
@@ -295,7 +295,7 @@ var x : i32 = 1;
 }
 
 TEST_CASE("unknown_directive") {
-    wgslpp::Preprocessor pp;
+    pre_wgsl::Preprocessor pp;
 
     const std::string src = R"(var x : i32 = 1;
 #pragma something
@@ -306,7 +306,7 @@ var y : i32 = 2;
 }
 
 TEST_CASE("define_expansion_in_code") {
-    wgslpp::Preprocessor pp;
+    pre_wgsl::Preprocessor pp;
 
     const std::string src = R"(#define WORKGROUP_SIZE 256
 #define PI 3.14159

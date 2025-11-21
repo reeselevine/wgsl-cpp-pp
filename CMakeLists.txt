@@ -1,14 +1,14 @@
 cmake_minimum_required(VERSION 3.17)
-project("wgslpp" CXX)
+project("pre-wgsl" CXX)
 
-add_library(wgslpp INTERFACE)
-target_include_directories(wgslpp INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_compile_features(wgslpp INTERFACE cxx_std_17)
+add_library(pre-wgsl INTERFACE)
+target_include_directories(pre-wgsl INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_compile_features(pre-wgsl INTERFACE cxx_std_17)
 
 # Only enable tests when this is the top-level project
 if (CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
-    option(WGSLPP_BUILD_TESTS "Build wgslpp tests" ON)
-    if (WGSLPP_BUILD_TESTS)
+    option(PRE_WGSL_BUILD_TESTS "Build pre-wgsl tests" ON)
+    if (PRE_WGSL_BUILD_TESTS)
         add_subdirectory(tests)
         enable_testing()
     endif()

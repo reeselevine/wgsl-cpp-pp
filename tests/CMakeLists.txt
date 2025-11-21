@@ -10,23 +10,23 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(catch2)
 
-add_executable(wgslpp_tests
+add_executable(pre_wgsl_tests
     test_preprocessor.cpp
 )
 
 # Pass absolute path of tests/shaders into the test executable
-target_compile_definitions(wgslpp_tests PRIVATE
+target_compile_definitions(pre_wgsl_tests PRIVATE
     TEST_SHADER_DIR="${CMAKE_CURRENT_SOURCE_DIR}/shaders/"
 )
 
-target_link_libraries(wgslpp_tests
+target_link_libraries(pre_wgsl_tests
     PRIVATE
-        wgslpp
+        pre-wgsl
         Catch2::Catch2WithMain
 )
 
-target_compile_features(wgslpp_tests PRIVATE cxx_std_17)
+target_compile_features(pre_wgsl_tests PRIVATE cxx_std_17)
 
 include(CTest)
 include(Catch)
-catch_discover_tests(wgslpp_tests)
+catch_discover_tests(pre_wgsl_tests)
