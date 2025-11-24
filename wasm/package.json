@@ -1,0 +1,45 @@
+{
+  "name": "pre-wgsl",
+  "version": "0.1.0",
+  "description": "A WASM-powered WGSL preprocessor with support for #define, conditionals",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist/**/*",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build:wasm": "bash build-wasm.sh",
+    "build:js": "tsc",
+    "build": "npm run build:wasm && npm run build:js",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "wgsl",
+    "webgpu",
+    "preprocessor",
+    "shader",
+    "webassembly",
+    "wasm"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/reeselevine/pre-wgsl.git"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

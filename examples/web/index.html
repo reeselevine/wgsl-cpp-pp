@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PreWGSL - WGSL Preprocessor Playground</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎨 PreWGSL Playground</h1>
+            <p>Test the WGSL preprocessor with different inputs and macros</p>
+        </header>
+
+        <div class="content">
+            <div class="panel input-panel">
+                <div class="panel-header">
+                    <h2>Input WGSL</h2>
+                    <button id="loadExample" class="btn btn-secondary">Load Example</button>
+                </div>
+                <textarea id="inputCode" placeholder="Enter your WGSL shader code with preprocessor directives..."># Example shader with preprocessor directives
+#define WORKGROUP_SIZE 256
+#define PI 3.14159
+
+@compute @workgroup_size(WORKGROUP_SIZE, 1, 1)
+fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
+    let angle = f32(global_id.x) * PI / 180.0;
+}</textarea>
+            </div>
+
+            <div class="panel macros-panel">
+                <div class="panel-header">
+                    <h2>Macros</h2>
+                    <button id="addMacro" class="btn btn-small">+ Add</button>
+                </div>
+                <div id="macrosList" class="macros-list">
+                    <!-- Macros will be added here dynamically -->
+                </div>
+                <div class="macro-help">
+                    <small>Format: <code>NAME</code> or <code>NAME=value</code></small>
+                </div>
+            </div>
+
+            <div class="controls">
+                <button id="processBtn" class="btn btn-primary">Process Shader</button>
+                <button id="clearBtn" class="btn btn-secondary">Clear All</button>
+            </div>
+
+            <div class="panel output-panel">
+                <div class="panel-header">
+                    <h2>Output</h2>
+                    <button id="copyBtn" class="btn btn-small">Copy</button>
+                </div>
+                <div id="output" class="output">
+                    <div class="placeholder">Processed shader will appear here...</div>
+                </div>
+                <div id="error" class="error hidden"></div>
+            </div>
+        </div>
+
+        <footer>
+            <p>
+                Built with <a href="https://github.com/reeselevine/pre-wgsl" target="_blank">PreWGSL</a> |
+                <a href="https://github.com/reeselevine/pre-wgsl/tree/main/examples/web" target="_blank">View Source</a>
+            </p>
+        </footer>
+    </div>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>
