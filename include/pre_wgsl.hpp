@@ -401,42 +401,41 @@ private:
     }
 
     //----------------------------------------------------------
+    // Helper to check if a character can be part of an identifier
+    //----------------------------------------------------------
+    static bool isIdent(char c) {
+        return std::isalnum(static_cast<unsigned char>(c)) || c == '_';
+    }
+
+    //----------------------------------------------------------
     // Expand macros in a line of code
     //----------------------------------------------------------
     std::string expandMacros(const std::string& line,
                             const std::unordered_map<std::string,std::string>& macros) {
         std::string result;
-        size_t pos = 0;
-        while (pos < line.size()) {
-            if (line[pos] == '{' && pos + 1 < line.size() && line[pos + 1] == '{') {
-                size_t end = pos + 2;
-                while (end + 1 < line.size() && !(line[end] == '}' && line[end + 1] == '}')) {
-                    end++;
+        result.reserve(line.size());
+
+        size_t i = 0;
+        while (i < line.size()) {
+            if (isIdent(line[i])) {
+                size_t start = i;
+                while (i < line.size() && isIdent(line[i])) {
+                    i++;
                 }
+                std::string token = line.substr(start, i - start);
 
-                if (end + 1 < line.size() && line[end] == '}' && line[end + 1] == '}') {
-                    std::string macro_name = line.substr(pos + 2, end - pos - 2);
-                    macro_name = trim(macro_name);
-
-                    auto it = macros.find(macro_name);
-                    if (it != macros.end()) {
-                        result += it->second;
-                    } else {
-                        // If macro not found, keep the original {{MACRO_NAME}}
-                        result += line.substr(pos, end - pos + 2);
-                    }
-
-                    pos = end + 2;
+                auto it = macros.find(token);
+                if (it != macros.end()) {
+                    result += it->second;
                 } else {
-                    // No closing }}, just copy the character
-                    result += line[pos];
-                    pos++;
+                    result += token;
                 }
             } else {
-                result += line[pos];
-                pos++;
+                result += line[i];
+                i++;
             }
         }
+
         return result;
     }
 

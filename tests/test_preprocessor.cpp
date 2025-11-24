@@ -311,11 +311,11 @@ TEST_CASE("define_expansion_in_code") {
     const std::string src = R"(#define WORKGROUP_SIZE 256
 #define PI 3.14159
 
-@compute @workgroup_size({{WORKGROUP_SIZE}})
+@compute @workgroup_size(WORKGROUP_SIZE)
 fn main() {
     let radius : f32 = 10.0;
-    let area : f32 = {{PI}}* radius * radius;
-    var threads : i32 = {{WORKGROUP_SIZE}};
+    let area : f32 = PI* radius * radius;
+    var threads: u32 = WORKGROUP_SIZE;
 }
 )";
 
@@ -327,11 +327,37 @@ fn main() {
     // Macros should be expanded in code outside directives
     REQUIRE(out.find("@workgroup_size(256)") != std::string::npos);
     REQUIRE(out.find("let area : f32 = 3.14159* radius * radius;") != std::string::npos);
-    REQUIRE(out.find("var threads : i32 = 256;") != std::string::npos);
+    REQUIRE(out.find("var threads: u32 = 256;") != std::string::npos);
 
     // The macro names themselves should not appear in the output
-    REQUIRE(out.find("{{WORKGROUP_SIZE}}") == std::string::npos);
-    REQUIRE(out.find("{{PI}}") == std::string::npos);
+    REQUIRE(out.find("WORKGROUP_SIZE") == std::string::npos);
+    REQUIRE(out.find("PI") == std::string::npos);
+}
+
+TEST_CASE("macro_expansion_no_partial_match") {
+    pre_wgsl::Preprocessor pp;
+    const std::string src = R"(#define X 100
+#define MAX 200
+fn test() {
+    var x : i32 = X;
+    var max_value : i32 = MAX;
+    var maximum : i32 = 500;
+    var x_coord : i32 = 10;
+    var PREFIX_X : i32 = 20;
+    var MAX_SIZE : i32 = 1000;
+}
+)";
+
+    std::string out = pp.preprocess(src);
+    out = normalize_newlines(out);
+    INFO("Preprocessor output:\n" + out);
+
+    REQUIRE(out.find("var x : i32 = 100;") != std::string::npos);
+    REQUIRE(out.find("var max_value : i32 = 200;") != std::string::npos);
+    REQUIRE(out.find("var maximum : i32 = 500;") != std::string::npos);
+    REQUIRE(out.find("var x_coord : i32 = 10;") != std::string::npos);
+    REQUIRE(out.find("var PREFIX_X : i32 = 20;") != std::string::npos);
+    REQUIRE(out.find("var MAX_SIZE : i32 = 1000;") != std::string::npos);
 }
 
 TEST_CASE("options_macro_simple") {
@@ -377,7 +403,7 @@ TEST_CASE("options_macro_complex_value") {
     opts.macros = {"VEC_TYPE=vec4<u32>"};
     pre_wgsl::Preprocessor pp(opts);
 
-    const std::string src = R"(var my_vector : {{VEC_TYPE}} = {{VEC_TYPE}}(1u, 2u, 3u, 4u);
+    const std::string src = R"(var my_vector : VEC_TYPE = VEC_TYPE(1u, 2u, 3u, 4u);
 )";
 
     std::string out = pp.preprocess(src);
@@ -395,7 +421,7 @@ TEST_CASE("options_macro_overrides_define") {
     pre_wgsl::Preprocessor pp(opts);
 
     const std::string src = R"(#define OVERRIDE 123
-var value : i32 = {{OVERRIDE}};
+var value : i32 = OVERRIDE;
 )";
 
     std::string out = pp.preprocess(src);
@@ -414,9 +440,9 @@ TEST_CASE("options_multiple_macros") {
     pre_wgsl::Preprocessor pp(opts);
 
     const std::string src = R"(#ifdef FOO
-var foo_defined : i32 = {{BAR}};
+var foo_defined : i32 = BAR;
 #endif
-var my_vec : {{BAZ}};
+var my_vec : BAZ;
 )";
 
     std::string out = pp.preprocess(src);
@@ -433,7 +459,7 @@ TEST_CASE("options_macro_with_spaces") {
     opts.macros = {"  SPACED  =  123  "};
     pre_wgsl::Preprocessor pp(opts);
 
-    const std::string src = R"(var value : i32 = {{SPACED}};
+    const std::string src = R"(var value : i32 = SPACED;
 )";
 
     std::string out = pp.preprocess(src);
@@ -458,27 +484,31 @@ var feature_enabled : i32 = 0;
     // First call with FEATURE defined
     std::string out1 = pp.preprocess(src, {"FEATURE"});
     out1 = normalize_newlines(out1);
+    INFO("Preprocessor output (FEATURE defined):\n" + out1);
     REQUIRE(out1.find("var feature_enabled : i32 = 1;") != std::string::npos);
 
     // Second call without FEATURE defined
     std::string out2 = pp.preprocess(src);
     out2 = normalize_newlines(out2);
+    INFO("Preprocessor output (FEATURE not defined):\n" + out2);
     REQUIRE(out2.find("var feature_enabled : i32 = 0;") != std::string::npos);
 }
 
 TEST_CASE("per_call_macros_with_value") {
     pre_wgsl::Preprocessor pp;
 
-    const std::string src = R"(var size : i32 = {{SIZE}};
+    const std::string src = R"(var size : i32 = SIZE;
 )";
 
     // Call with different SIZE values
     std::string out1 = pp.preprocess(src, {"SIZE=10"});
     out1 = normalize_newlines(out1);
+    INFO("Preprocessor output (SIZE=10):\n" + out1);
     REQUIRE(out1.find("var size : i32 = 10;") != std::string::npos);
 
     std::string out2 = pp.preprocess(src, {"SIZE=20"});
     out2 = normalize_newlines(out2);
+    INFO("Preprocessor output (SIZE=20):\n" + out2);
     REQUIRE(out2.find("var size : i32 = 20;") != std::string::npos);
 }
 
@@ -486,13 +516,13 @@ TEST_CASE("per_call_macros_override_per_file") {
     pre_wgsl::Preprocessor pp;
 
     const std::string src = R"(#define LOCAL 100
-var local_value : i32 = {{LOCAL}};
+var local_value : i32 = LOCAL;
 )";
 
     // Per-call macro should override #define in the file (per-call macros are predefined)
     std::string out = pp.preprocess(src, {"LOCAL=999"});
     out = normalize_newlines(out);
-
+    INFO("Preprocessor output:\n" + out);
     // The per-call macro should win because it's predefined
     REQUIRE(out.find("var local_value : i32 = 999;") != std::string::npos);
 }
@@ -502,14 +532,14 @@ TEST_CASE("global_and_per_call_macros") {
     opts.macros = {"GLOBAL=100"};
     pre_wgsl::Preprocessor pp(opts);
 
-    const std::string src = R"(var global_val : i32 = {{GLOBAL}};
-var local_val : i32 = {{LOCAL}};
+    const std::string src = R"(var global_val : i32 = GLOBAL;
+var local_val : i32 = LOCAL;
 )";
 
     // Use both global and per-call macros
     std::string out = pp.preprocess(src, {"LOCAL=200"});
     out = normalize_newlines(out);
-
+    INFO("Preprocessor output:\n" + out);
     REQUIRE(out.find("var global_val : i32 = 100;") != std::string::npos);
     REQUIRE(out.find("var local_val : i32 = 200;") != std::string::npos);
 }
@@ -519,13 +549,13 @@ TEST_CASE("global_macros_should_be_overridden") {
     opts.macros = {"OVERRIDEABLE=100"};
     pre_wgsl::Preprocessor pp(opts);
 
-    const std::string src = R"(var value : i32 = {{OVERRIDEABLE}};
+    const std::string src = R"(var value : i32 = OVERRIDEABLE;
 )";
 
     // Override global macro with per-call macro
     std::string out = pp.preprocess(src, {"OVERRIDEABLE=999"});
     out = normalize_newlines(out);
-
+    INFO("Preprocessor output:\n" + out);
     // Global macro value should be preserved
     REQUIRE(out.find("var value : i32 = 100;") == std::string::npos);
     REQUIRE(out.find("var value : i32 = 999;") != std::string::npos);
@@ -535,25 +565,25 @@ TEST_CASE("per_call_macros_multiple") {
     pre_wgsl::Preprocessor pp;
 
     const std::string src = R"(#if defined(A) && defined(B)
-var ab_value : i32 = {{A}} + {{B}};
+var ab_value : i32 = A + B;
 #endif
 )";
 
     std::string out = pp.preprocess(src, {"A=10", "B=20"});
     out = normalize_newlines(out);
-
+    INFO("Preprocessor output:\n" + out);
     REQUIRE(out.find("var ab_value : i32 = 10 + 20;") != std::string::npos);
 }
 
 TEST_CASE("per_call_macros_complex_value") {
     pre_wgsl::Preprocessor pp;
 
-    const std::string src = R"(var my_vec : {{VEC_TYPE}};
+    const std::string src = R"(var my_vec : VEC_TYPE;
 )";
 
     std::string out = pp.preprocess(src, {"VEC_TYPE=vec3<f32>"});
     out = normalize_newlines(out);
-
+    INFO("Preprocessor output:\n" + out);
     REQUIRE(out.find("var my_vec : vec3<f32>;") != std::string::npos);
 }
 
@@ -562,22 +592,25 @@ TEST_CASE("per_call_macros_persistent_across_calls") {
     opts.macros = {"PERSISTENT=42"};
     pre_wgsl::Preprocessor pp(opts);
 
-    const std::string src = R"(var val : i32 = {{PERSISTENT}};
+    const std::string src = R"(var val : i32 = PERSISTENT;
 )";
 
     // First call with no per-call macros
     std::string out1 = pp.preprocess(src);
     out1 = normalize_newlines(out1);
+    INFO("Preprocessor output (no per-call macros):\n" + out1);
     REQUIRE(out1.find("var val : i32 = 42;") != std::string::npos);
 
     // Second call with per-call macro - global should still work
     std::string out2 = pp.preprocess(src, {"OTHER=100"});
     out2 = normalize_newlines(out2);
+    INFO("Preprocessor output (OTHER=100):\n" + out2);
     REQUIRE(out2.find("var val : i32 = 42;") != std::string::npos);
 
     // Third call - verify global macro still works
     std::string out3 = pp.preprocess(src);
     out3 = normalize_newlines(out3);
+    INFO("Preprocessor output (third call):\n" + out3);
     REQUIRE(out3.find("var val : i32 = 42;") != std::string::npos);
 }
 
