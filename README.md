@@ -75,8 +75,10 @@ To the best of my knowledge, here are the existing open-source WGSL preprocessor
 
 - [wgsl-preprocessor](https://github.com/toji/wgsl-preprocessor): A JavaScript-based preprocessor with basic conditional preprocessing, uses template literals for macro expansion.
 - [wgsl-template](https://github.com/fs-eire/wgsl-template): Another JavaScript-based preprocessor which supports different syntax for macros, and also can generate C++ code to embed processed WGSL shaders.
-- [WESL](https://github.com/wgsl-tooling-wg/wesl-spec): An extended version of WGSL with support for imports, conditional translation by extending WGSL's "@" attributes. Also supports packaging shader libraries for reuse.
+- [wgsl-plus](https://github.com/JSideris/wgsl-plus): yet another JavaScript-based preprocessor with very similar syntax, built-in obfuscator/minifier/prettifier.
+- [WESL](https://github.com/wgsl-tooling-wg/wesl-spec): An extended version of WGSL with support for imports, conditional translation by extending WGSL's "@" attributes. Also supports packaging shader libraries for reuse. Implementations in Rust and Javascript. As far as I can tell, the two implementations are independent, meaning they must be kept in sync manually.
 - [wgsl_preprocessor](https://github.com/elyshaffir/wgsl_preprocessor): A Rust-based preprocessor with support for includes and macros.
+- 
 
 However, none of these worked for my use case, which was to be able to define many variants of WGSL shaders for my work on [llama.cpp](https://github.com/reeselevine/llama.cpp), which is a C++ project. And I did not want to have to depend on a JavaScript or Rust toolchain to preprocess my shaders.
 
