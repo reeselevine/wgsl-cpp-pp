@@ -72,7 +72,7 @@ For a full demo see `examples/web`.
 
 ## Why another WGSL preprocessor?
 
-WGSL made the conscious decision to not include a preprocessor in the core language specification (at least for now): https://github.com/gpuweb/gpuweb/issues/568. Without getting into the pros and cons of this decision, this has led to the development of several open-source third-party preprocessors. Likely, many projects implement custom preprocessing solutions within their codebases as well.
+WGSL made the deliberate decision to not include a preprocessor in the core language specification (at least for now): https://github.com/gpuweb/gpuweb/issues/568. Without getting into the pros and cons of this decision, this has led to the development of several open-source third-party preprocessors. Likely, many projects implement custom preprocessing solutions within their codebases as well.
 
 To the best of my knowledge, here are the existing open-source WGSL preprocessors:
 
