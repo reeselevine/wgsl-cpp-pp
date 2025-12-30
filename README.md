@@ -14,6 +14,7 @@ https://reeselevine.github.io/pre-wgsl/
   - `#if` / `#elif` / `#else` - Expression-based conditions
     - Expressions can use boolean logic and integer arithmetic, as well a a special `defined(MACRO_NAME)` operator
   - `#define` - Define macros with/without values
+  - `#undef` - Undefine macros
     - Macro expansion in code
       - Note: WGSL uses syntax like `4u` for type suffixes, but this preprocessor will not expand a macro like `MACRO_NAMEu`.
     - Pass macros globally or per-shader process call
@@ -138,6 +139,15 @@ Define a macro:
 #define PI 3.14159
 #define WORKGROUP_SIZE 256
 #define ENABLED
+```
+
+### `#undef NAME`
+
+Undefine a macro:
+
+```wgsl
+#define DEBUG
+#undef DEBUG
 ```
 
 ### `#ifdef` / `#ifndef`

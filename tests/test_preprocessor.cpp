@@ -89,6 +89,41 @@ var bar_disabled : i32 = 1;
     REQUIRE(out.find("var bar_disabled : i32 = 1;") == std::string::npos);
 }
 
+TEST_CASE("undef_basic") {
+    pre_wgsl::Preprocessor pp;
+
+    const std::string src = R"(#define FOO 1
+#undef FOO
+#ifdef FOO
+var foo_defined : i32 = 1;
+#else
+var foo_defined : i32 = 0;
+#endif
+)";
+
+    std::string out = pp.preprocess(src);
+    out = normalize_newlines(out);
+
+    REQUIRE(out.find("var foo_defined : i32 = 0;") != std::string::npos);
+    REQUIRE(out.find("var foo_defined : i32 = 1;") == std::string::npos);
+}
+
+TEST_CASE("undef_in_inactive_block") {
+    pre_wgsl::Preprocessor pp;
+
+    const std::string src = R"(#define BAR 1
+#if 0
+#undef BAR
+#endif
+var bar_value : i32 = BAR;
+)";
+
+    std::string out = pp.preprocess(src);
+    out = normalize_newlines(out);
+
+    REQUIRE(out.find("var bar_value : i32 = 1;") != std::string::npos);
+}
+
 TEST_CASE("if_defined") {
     pre_wgsl::Preprocessor pp;
 
@@ -434,6 +469,21 @@ var value : i32 = OVERRIDE;
     REQUIRE(out.find("var value : i32 = 123;") == std::string::npos);
 }
 
+TEST_CASE("options_macro_not_undefined") {
+    pre_wgsl::Options opts;
+    opts.macros = {"LOCKED=7"};
+    pre_wgsl::Preprocessor pp(opts);
+
+    const std::string src = R"(#undef LOCKED
+var value : i32 = LOCKED;
+)";
+
+    std::string out = pp.preprocess(src);
+    out = normalize_newlines(out);
+
+    REQUIRE(out.find("var value : i32 = 7;") != std::string::npos);
+}
+
 TEST_CASE("options_multiple_macros") {
     pre_wgsl::Options opts;
     opts.macros = {"FOO", "BAR=1", "BAZ=vec4<u32>"};
@@ -613,4 +663,3 @@ TEST_CASE("per_call_macros_persistent_across_calls") {
     INFO("Preprocessor output (third call):\n" + out3);
     REQUIRE(out3.find("var val : i32 = 42;") != std::string::npos);
 }
-

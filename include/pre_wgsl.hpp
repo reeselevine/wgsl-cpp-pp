@@ -532,6 +532,16 @@ private:
             return;
         }
 
+        if (cmd == "undef") {
+            if (!condActive(cond)) return;
+            std::string name;
+            iss >> name;
+            // Don't undef predefined macros from options
+            if (predefined_macros.count(name)) return;
+            macros.erase(name);
+            return;
+        }
+
         if (cmd == "ifdef") {
             std::string name; iss >> name;
             bool p = condActive(cond);
