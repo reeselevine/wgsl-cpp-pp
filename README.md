@@ -16,7 +16,8 @@ https://reeselevine.github.io/pre-wgsl/
   - `#define` - Define macros with/without values
   - `#undef` - Undefine macros
     - Macro expansion in code
-      - Note: WGSL uses syntax like `4u` for type suffixes, but this preprocessor will not expand a macro like `MACRO_NAMEu`.
+      - Macro expansion is recursive (e.g., `#define Z (X / Y)` expands using `X` and `Y`).
+      - Note: WGSL uses syntax like `4u` for type suffixes, but this preprocessor will not correctly expand a macro like `MACRO_NAMEu`.
     - Pass macros globally or per-shader process call
 
 ## Native

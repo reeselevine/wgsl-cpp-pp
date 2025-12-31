@@ -425,6 +425,49 @@ fn test() {
     REQUIRE(out.find("var MAX_SIZE : i32 = 1000;") != std::string::npos);
 }
 
+TEST_CASE("macro_expansion_recursive") {
+    pre_wgsl::Preprocessor pp;
+    const std::string src = R"(#define X 64
+#define Y 8
+#define Z (X / Y)
+#if Z == 8
+var z_ok : i32 = 1;
+#else
+var z_ok : i32 = 0;
+#endif
+var z_value : i32 = Z;
+)";
+
+    std::string out = pp.preprocess(src);
+    out = normalize_newlines(out);
+
+    REQUIRE(out.find("var z_ok : i32 = 1;") != std::string::npos);
+    REQUIRE(out.find("var z_ok : i32 = 0;") == std::string::npos);
+    REQUIRE(out.find("var z_value : i32 = (64 / 8);") != std::string::npos);
+}
+
+TEST_CASE("macro_expansion_recursive_reverse") {
+    pre_wgsl::Preprocessor pp;
+    const std::string src = R"(#define Z (X / Y)
+#define X 64
+#define Y 8
+#if Z == 8
+var z_ok : i32 = 1;
+#else
+var z_ok : i32 = 0;
+#endif
+var z_value : i32 = Z;
+)";
+
+    std::string out = pp.preprocess(src);
+    out = normalize_newlines(out);
+
+    REQUIRE(out.find("var z_ok : i32 = 1;") != std::string::npos);
+    REQUIRE(out.find("var z_ok : i32 = 0;") == std::string::npos);
+    REQUIRE(out.find("var z_value : i32 = (64 / 8);") != std::string::npos);
+}
+
+
 TEST_CASE("options_macro_simple") {
     pre_wgsl::Options opts;
     opts.macros = {"FOO"};

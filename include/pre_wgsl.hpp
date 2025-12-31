@@ -24,7 +24,7 @@ struct Options {
 //==============================================================
 // Utility: trim
 //==============================================================
-static inline std::string trim(const std::string& s) {
+static std::string trim(const std::string& s) {
     size_t a = 0;
     while (a < s.size() && std::isspace((unsigned char)s[a])) a++;
     size_t b = s.size();
@@ -32,10 +32,82 @@ static inline std::string trim(const std::string& s) {
     return s.substr(a, b - a);
 }
 
-static inline std::string trim_value(std::istream& is) {
+static std::string trim_value(std::istream& is) {
     std::string str;
     std::getline(is, str);
     return trim(str);
+}
+
+static bool isIdentChar(char c) {
+    return std::isalnum(static_cast<unsigned char>(c)) || c == '_';
+}
+
+static std::string expandMacrosRecursiveInternal(
+    const std::string& line,
+    const std::unordered_map<std::string,std::string>& macros,
+    std::unordered_set<std::string>& visiting);
+
+static std::string expandMacroValue(
+    const std::string& name,
+    const std::unordered_map<std::string,std::string>& macros,
+    std::unordered_set<std::string>& visiting) {
+    if (visiting.count(name))
+        throw std::runtime_error("Recursive macro: " + name);
+    visiting.insert(name);
+
+    auto it = macros.find(name);
+    if (it == macros.end()) {
+        visiting.erase(name);
+        return name;
+    }
+
+    const std::string& value = it->second;
+    if (value.empty()) {
+        visiting.erase(name);
+        return "";
+    }
+
+    std::string expanded = expandMacrosRecursiveInternal(value, macros, visiting);
+    visiting.erase(name);
+    return expanded;
+}
+
+static std::string expandMacrosRecursiveInternal(
+    const std::string& line,
+    const std::unordered_map<std::string,std::string>& macros,
+    std::unordered_set<std::string>& visiting) {
+    std::string result;
+    result.reserve(line.size());
+
+    size_t i = 0;
+    while (i < line.size()) {
+        if (isIdentChar(line[i])) {
+            size_t start = i;
+            while (i < line.size() && isIdentChar(line[i])) {
+                i++;
+            }
+            std::string token = line.substr(start, i - start);
+
+            auto it = macros.find(token);
+            if (it != macros.end()) {
+                result += expandMacroValue(token, macros, visiting);
+            } else {
+                result += token;
+            }
+        } else {
+            result += line[i];
+            i++;
+        }
+    }
+
+    return result;
+}
+
+static std::string expandMacrosRecursive(
+    const std::string& line,
+    const std::unordered_map<std::string,std::string>& macros) {
+    std::unordered_set<std::string> visiting;
+    return expandMacrosRecursiveInternal(line, macros, visiting);
 }
 
 //==============================================================
@@ -119,8 +191,9 @@ private:
 class ExprParser {
 public:
     ExprParser(std::string_view expr,
-               const std::unordered_map<std::string,std::string>& macros)
-        : lex(expr), macros(macros)
+               const std::unordered_map<std::string,std::string>& macros,
+               std::unordered_set<std::string>& visiting)
+        : lex(expr), macros(macros), visiting(visiting)
     {
         advance();
     }
@@ -133,6 +206,7 @@ private:
     ExprLexer lex;
     ExprLexer::Tok tok;
     const std::unordered_map<std::string,std::string>& macros;
+    std::unordered_set<std::string>& visiting;
 
     void advance() { tok = lex.next(); }
 
@@ -278,11 +352,22 @@ private:
             auto it = macros.find(name);
             if (it == macros.end()) return 0;
             if (it->second.empty()) return 1;
-            return std::stoi(it->second);
+            return evalMacroExpression(name, it->second);
         }
 
         // unexpected
         return 0;
+    }
+
+    int evalMacroExpression(const std::string& name, const std::string& value) {
+        if (visiting.count(name))
+            throw std::runtime_error("Recursive macro: " + name);
+
+        visiting.insert(name);
+        ExprParser ep(value, macros, visiting);
+        int v = ep.parse();
+        visiting.erase(name);
+        return v;
     }
 };
 
@@ -422,45 +507,6 @@ private:
     }
 
     //----------------------------------------------------------
-    // Helper to check if a character can be part of an identifier
-    //----------------------------------------------------------
-    static bool isIdent(char c) {
-        return std::isalnum(static_cast<unsigned char>(c)) || c == '_';
-    }
-
-    //----------------------------------------------------------
-    // Expand macros in a line of code
-    //----------------------------------------------------------
-    std::string expandMacros(const std::string& line,
-                            const std::unordered_map<std::string,std::string>& macros) {
-        std::string result;
-        result.reserve(line.size());
-
-        size_t i = 0;
-        while (i < line.size()) {
-            if (isIdent(line[i])) {
-                size_t start = i;
-                while (i < line.size() && isIdent(line[i])) {
-                    i++;
-                }
-                std::string token = line.substr(start, i - start);
-
-                auto it = macros.find(token);
-                if (it != macros.end()) {
-                    result += it->second;
-                } else {
-                    result += token;
-                }
-            } else {
-                result += line[i];
-                i++;
-            }
-        }
-
-        return result;
-    }
-
-    //----------------------------------------------------------
     // Process a file
     //----------------------------------------------------------
     std::string processFile(const std::string& name,
@@ -514,7 +560,7 @@ private:
                     out << line << "\n";
                 } else if (condActive(cond)) {
                     // Expand macros in the line before outputting
-                    std::string expanded = expandMacros(line, macros);
+                    std::string expanded = expandMacrosRecursive(line, macros);
                     out << expanded << "\n";
                 }
             }
@@ -595,7 +641,8 @@ private:
             bool p = condActive(cond);
             bool v = false;
             if (p) {
-                ExprParser ep(expr, macros);
+                std::unordered_set<std::string> visiting;
+                ExprParser ep(expr, macros, visiting);
                 v = ep.parse() != 0;
             }
             cond.push_back({p, p && v, p && v});
@@ -619,7 +666,8 @@ private:
                 return true;
             }
 
-            ExprParser ep(expr, macros);
+            std::unordered_set<std::string> visiting;
+            ExprParser ep(expr, macros, visiting);
             bool v = ep.parse() != 0;
             c.active = v;
             if (v) c.taken = true;
