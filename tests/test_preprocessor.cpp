@@ -46,6 +46,36 @@ TEST_CASE("basic_include") {
     REQUIRE(out.find("let a_from_include") != std::string::npos);
 }
 
+TEST_CASE("includes_only_basic") {
+    pre_wgsl::Options opts;
+    opts.include_path = test_shader_dir;
+    pre_wgsl::Preprocessor pp(opts);
+
+    const std::string src = R"(#define FOO 1
+#include "include_a.wgsl"
+var x : i32 = FOO;
+)";
+
+    std::string out = pp.preprocess_includes(src);
+    out = normalize_newlines(out);
+
+    REQUIRE(out.find("// from include_a.wgsl") != std::string::npos);
+    REQUIRE(out.find("#define FOO 1") != std::string::npos);
+    REQUIRE(out.find("var x : i32 = FOO;") != std::string::npos);
+}
+
+TEST_CASE("includes_only_file") {
+    pre_wgsl::Options opts;
+    opts.include_path = test_shader_dir;
+    pre_wgsl::Preprocessor pp(opts);
+
+    std::string out = pp.preprocess_includes_file(test_shader_dir + "main_include.wgsl");
+    out = normalize_newlines(out);
+
+    REQUIRE(out.find("// main_include.wgsl") != std::string::npos);
+    REQUIRE(out.find("// from include_a.wgsl") != std::string::npos);
+}
+
 TEST_CASE("recursive_include") {
     pre_wgsl::Options opts;
     opts.include_path = "tests/shaders";

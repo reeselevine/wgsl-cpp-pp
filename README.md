@@ -41,6 +41,12 @@ std::string shaderCode = R"(
 std::string processed = preprocessor.preprocess(shaderCode, macros);
 ```
 
+You can also expand only `#include` directives (no macro or conditional processing):
+
+```cpp
+std::string expanded = preprocessor.preprocess_includes(shaderCode);
+```
+
 For a full demo see `examples/cli`.
 
 ## Browser / Node.js
@@ -67,6 +73,12 @@ const source = `
   }
 `;
 const processed = preprocessor.preprocess(source);
+```
+
+You can also expand only `#include` directives (no macro or conditional processing):
+
+```javascript
+const expanded = preprocessor.preprocess_includes(source);
 ```
 
 For a full demo see `examples/web`.

@@ -307,7 +307,7 @@ public:
         std::unordered_set<std::string> include_stack;
         buildMacros(additional_macros, macros, predefined);
 
-        std::string result = processFile(filename, macros, predefined, include_stack);
+        std::string result = processFile(filename, macros, predefined, include_stack, DirectiveMode::All);
         return result;
     }
 
@@ -319,13 +319,34 @@ public:
         std::unordered_set<std::string> include_stack;
         buildMacros(additional_macros, macros, predefined);
 
-        std::string result = processString(contents, macros, predefined, include_stack);
+        std::string result = processString(contents, macros, predefined, include_stack, DirectiveMode::All);
+        return result;
+    }
+
+    std::string preprocess_includes_file(const std::string& filename) {
+        std::unordered_map<std::string,std::string> macros;
+        std::unordered_set<std::string> predefined;
+        std::unordered_set<std::string> include_stack;
+        std::string result = processFile(filename, macros, predefined, include_stack, DirectiveMode::IncludesOnly);
+        return result;
+    }
+
+    std::string preprocess_includes(const std::string& contents) {
+        std::unordered_map<std::string,std::string> macros;
+        std::unordered_set<std::string> predefined;
+        std::unordered_set<std::string> include_stack;
+        std::string result = processString(contents, macros, predefined, include_stack, DirectiveMode::IncludesOnly);
         return result;
     }
 
 private:
     Options opts_;
     std::unordered_map<std::string,std::string> global_macros;
+
+    enum class DirectiveMode {
+        All,
+        IncludesOnly
+    };
 
     struct Cond {
         bool parent_active;
@@ -445,13 +466,14 @@ private:
     std::string processFile(const std::string& name,
                            std::unordered_map<std::string,std::string>& macros,
                            const std::unordered_set<std::string>& predefined_macros,
-                           std::unordered_set<std::string>& include_stack) {
+                           std::unordered_set<std::string>& include_stack,
+                           DirectiveMode mode) {
         if (include_stack.count(name))
             throw std::runtime_error("Recursive include: " + name);
 
         include_stack.insert(name);
         std::string shader_code = loadFile(name);
-        std::string out = processString(shader_code, macros, predefined_macros, include_stack);
+        std::string out = processString(shader_code, macros, predefined_macros, include_stack, mode);
         include_stack.erase(name);
         return out;
     }
@@ -459,9 +481,10 @@ private:
     std::string processIncludeFile(const std::string& fname,
                                    std::unordered_map<std::string,std::string>& macros,
                                    const std::unordered_set<std::string>& predefined_macros,
-                                   std::unordered_set<std::string>& include_stack) {
+                                   std::unordered_set<std::string>& include_stack,
+                                   DirectiveMode mode) {
         std::string full_path = opts_.include_path + "/" + fname;
-        return processFile(full_path, macros, predefined_macros, include_stack);
+        return processFile(full_path, macros, predefined_macros, include_stack, mode);
     }
 
     //----------------------------------------------------------
@@ -470,7 +493,8 @@ private:
     std::string processString(const std::string& shader_code,
                              std::unordered_map<std::string,std::string>& macros,
                              const std::unordered_set<std::string>& predefined_macros,
-                             std::unordered_set<std::string>& include_stack)
+                             std::unordered_set<std::string>& include_stack,
+                             DirectiveMode mode)
     {
         std::vector<Cond> cond;  // Conditional stack for this shader
         std::stringstream out;
@@ -481,9 +505,14 @@ private:
             std::string t = trim(line);
 
             if (!t.empty() && t[0] == '#') {
-                handleDirective(t, out, macros, predefined_macros, cond, include_stack);
+                bool handled = handleDirective(t, out, macros, predefined_macros, cond, include_stack, mode);
+                if (mode == DirectiveMode::IncludesOnly && !handled) {
+                    out << line << "\n";
+                }
             } else {
-                if (condActive(cond)) {
+                if (mode == DirectiveMode::IncludesOnly) {
+                    out << line << "\n";
+                } else if (condActive(cond)) {
                     // Expand macros in the line before outputting
                     std::string expanded = expandMacros(line, macros);
                     out << expanded << "\n";
@@ -491,7 +520,7 @@ private:
             }
         }
 
-        if (!cond.empty())
+        if (mode == DirectiveMode::All && !cond.empty())
             throw std::runtime_error("Unclosed #if directive");
 
         return out.str();
@@ -500,11 +529,12 @@ private:
     //----------------------------------------------------------
     // Directive handler
     //----------------------------------------------------------
-    void handleDirective(const std::string& t, std::stringstream& out,
+    bool handleDirective(const std::string& t, std::stringstream& out,
                         std::unordered_map<std::string,std::string>& macros,
                         const std::unordered_set<std::string>& predefined_macros,
                         std::vector<Cond>& cond,
-                        std::unordered_set<std::string>& include_stack) {
+                        std::unordered_set<std::string>& include_stack,
+                        DirectiveMode mode) {
         // split into tokens
         std::string body = t.substr(1);
         std::istringstream iss(body);
@@ -512,34 +542,36 @@ private:
         iss >> cmd;
 
         if (cmd == "include") {
-            if (!condActive(cond)) return;
+            if (mode == DirectiveMode::All && !condActive(cond)) return true;
             std::string file;
             iss >> file;
             if (file.size() >= 2 && file.front()=='"' && file.back()=='"')
                 file = file.substr(1, file.size()-2);
-            out << processIncludeFile(file, macros, predefined_macros, include_stack);
-            return;
+            out << processIncludeFile(file, macros, predefined_macros, include_stack, mode);
+            return true;
         }
 
+        if (mode == DirectiveMode::IncludesOnly) return false;
+
         if (cmd == "define") {
-            if (!condActive(cond)) return;
+            if (!condActive(cond)) return true;
             std::string name;
             iss >> name;
             // Don't override predefined macros from options
-            if (predefined_macros.count(name)) return;
+            if (predefined_macros.count(name)) return true;
             std::string value = trim_value(iss);
             macros[name] = value;
-            return;
+            return true;
         }
 
         if (cmd == "undef") {
-            if (!condActive(cond)) return;
+            if (!condActive(cond)) return true;
             std::string name;
             iss >> name;
             // Don't undef predefined macros from options
-            if (predefined_macros.count(name)) return;
+            if (predefined_macros.count(name)) return true;
             macros.erase(name);
-            return;
+            return true;
         }
 
         if (cmd == "ifdef") {
@@ -547,7 +579,7 @@ private:
             bool p = condActive(cond);
             bool v = macros.count(name);
             cond.push_back({p, p && v, p && v});
-            return;
+            return true;
         }
 
         if (cmd == "ifndef") {
@@ -555,7 +587,7 @@ private:
             bool p = condActive(cond);
             bool v = !macros.count(name);
             cond.push_back({p, p && v, p && v});
-            return;
+            return true;
         }
 
         if (cmd == "if") {
@@ -567,7 +599,7 @@ private:
                 v = ep.parse() != 0;
             }
             cond.push_back({p, p && v, p && v});
-            return;
+            return true;
         }
 
         if (cmd == "elif") {
@@ -579,19 +611,19 @@ private:
             Cond& c = cond.back();
             if (!c.parent_active) {
                 c.active = false;
-                return;
+                return true;
             }
 
             if (c.taken) {
                 c.active = false;
-                return;
+                return true;
             }
 
             ExprParser ep(expr, macros);
             bool v = ep.parse() != 0;
             c.active = v;
             if (v) c.taken = true;
-            return;
+            return true;
         }
 
         if (cmd == "else") {
@@ -601,7 +633,7 @@ private:
             Cond& c = cond.back();
             if (!c.parent_active) {
                 c.active = false;
-                return;
+                return true;
             }
             if (c.taken) {
                 c.active = false;
@@ -609,14 +641,14 @@ private:
                 c.active = true;
                 c.taken = true;
             }
-            return;
+            return true;
         }
 
         if (cmd == "endif") {
             if (cond.empty())
                 throw std::runtime_error("#endif without #if");
             cond.pop_back();
-            return;
+            return true;
         }
 
         // Unknown directive
