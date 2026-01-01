@@ -1,6 +1,6 @@
 {
   "name": "pre-wgsl",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A WASM-powered WGSL preprocessor with support for #define, conditionals",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
