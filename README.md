@@ -14,6 +14,7 @@ https://reeselevine.github.io/pre-wgsl/
   - `#if` / `#elif` / `#else` - Expression-based conditions
     - Expressions can use boolean logic and integer arithmetic, as well a a special `defined(MACRO_NAME)` operator
   - `#define` - Define macros with/without values
+    - Supports `\` line continuation for multi-line directives
   - `#undef` - Undefine macros
     - Macro expansion in code
       - Macro expansion is recursive (e.g., `#define Z (X / Y)` expands using `X` and `Y`).
@@ -152,6 +153,14 @@ Define a macro:
 #define PI 3.14159
 #define WORKGROUP_SIZE 256
 #define ENABLED
+```
+
+Multi-line macros using `\` line continuation:
+
+```wgsl
+#define MY_CODE \
+let a : i32 = 32; \
+let b : i32 = 42;
 ```
 
 ### `#undef NAME`

@@ -467,6 +467,24 @@ var z_value : i32 = Z;
     REQUIRE(out.find("var z_value : i32 = (64 / 8);") != std::string::npos);
 }
 
+TEST_CASE("macro_expansion_multiline_define") {
+    pre_wgsl::Preprocessor pp;
+    const std::string src = R"(#define MY_CODE \
+let a : i32 = 32; \
+let b : i32 = 42;
+fn main() {
+    MY_CODE
+}
+)";
+
+    std::string out = pp.preprocess(src);
+    out = normalize_newlines(out);
+
+    REQUIRE(out.find("let a : i32 = 32;") != std::string::npos);
+    REQUIRE(out.find("let b : i32 = 42;") != std::string::npos);
+    REQUIRE(out.find("MY_CODE") == std::string::npos);
+}
+
 
 TEST_CASE("options_macro_simple") {
     pre_wgsl::Options opts;
